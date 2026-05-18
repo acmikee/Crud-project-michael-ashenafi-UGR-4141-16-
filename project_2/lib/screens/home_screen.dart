@@ -4,22 +4,50 @@ import '../models/student_model.dart';
 import '../providers/student_provider.dart';
 import 'add_student_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF0D0D0D),
       appBar: AppBar(
-        title: const Text(
-          'Student Management',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        backgroundColor: const Color(0xFF1A1A1A),
+        elevation: 0,
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Student Management',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              'JSONPlaceholder API',
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+          ],
         ),
-        backgroundColor: Colors.indigo,
-        foregroundColor: Colors.white,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh, color: Colors.white),
             onPressed: () => context.read<StudentProvider>().loadStudents(),
           ),
         ],
@@ -30,9 +58,18 @@ class HomeScreen extends StatelessWidget {
             if (provider.successMessage.isNotEmpty) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(provider.successMessage),
-                  backgroundColor: Colors.green,
+                  content: Row(
+                    children: [
+                      const Icon(Icons.check_circle, color: Colors.white),
+                      const SizedBox(width: 8),
+                      Text(provider.successMessage),
+                    ],
+                  ),
+                  backgroundColor: const Color(0xFF00C853),
                   behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               );
               provider.clearSuccessMessage();
@@ -41,9 +78,18 @@ class HomeScreen extends StatelessWidget {
                 provider.errorMessage.isNotEmpty) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(provider.errorMessage),
+                  content: Row(
+                    children: [
+                      const Icon(Icons.error, color: Colors.white),
+                      const SizedBox(width: 8),
+                      Text(provider.errorMessage),
+                    ],
+                  ),
                   backgroundColor: Colors.red,
                   behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               );
               provider.clearErrorMessage();
@@ -52,7 +98,7 @@ class HomeScreen extends StatelessWidget {
 
           if (provider.status == StudentStatus.loading) {
             return const Center(
-              child: CircularProgressIndicator(color: Colors.indigo),
+              child: CircularProgressIndicator(color: Colors.white),
             );
           }
 
@@ -61,12 +107,20 @@ class HomeScreen extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                  const Icon(Icons.wifi_off, size: 64, color: Colors.grey),
                   const SizedBox(height: 16),
-                  Text(provider.errorMessage, textAlign: TextAlign.center),
+                  Text(
+                    provider.errorMessage,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.grey),
+                  ),
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () => provider.loadStudents(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black,
+                    ),
                     child: const Text('Retry'),
                   ),
                 ],
@@ -74,23 +128,90 @@ class HomeScreen extends StatelessWidget {
             );
           }
 
-          if (provider.students.isEmpty) {
-            return const Center(
-              child: Text(
-                'No students found.\nTap + to add one.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: Colors.grey),
-              ),
-            );
-          }
+          final filtered = provider.students.where((s) {
+            return s.name
+                    .toLowerCase()
+                    .contains(_searchQuery.toLowerCase()) ||
+                s.email
+                    .toLowerCase()
+                    .contains(_searchQuery.toLowerCase());
+          }).toList();
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(12),
-            itemCount: provider.students.length,
-            itemBuilder: (context, index) {
-              final student = provider.students[index];
-              return _StudentCard(student: student);
-            },
+          return Column(
+            children: [
+              // Search Bar
+              Container(
+                color: const Color(0xFF1A1A1A),
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: TextField(
+                  controller: _searchController,
+                  style: const TextStyle(color: Colors.white),
+                  onChanged: (value) => setState(() => _searchQuery = value),
+                  decoration: InputDecoration(
+                    hintText: 'Search by name or email...',
+                    hintStyle: const TextStyle(color: Colors.grey),
+                    prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, color: Colors.grey),
+                            onPressed: () => setState(() {
+                              _searchController.clear();
+                              _searchQuery = '';
+                            }),
+                          )
+                        : null,
+                    filled: true,
+                    fillColor: const Color(0xFF2A2A2A),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+              ),
+
+              // Student count
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    Text(
+                      '${filtered.length} Students',
+                      style:
+                          const TextStyle(color: Colors.grey, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+
+              // List
+              Expanded(
+                child: filtered.isEmpty
+                    ? const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.person_search,
+                                size: 64, color: Colors.grey),
+                            SizedBox(height: 12),
+                            Text(
+                              'No students found.',
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: filtered.length,
+                        itemBuilder: (context, index) {
+                          return _StudentCard(student: filtered[index]);
+                        },
+                      ),
+              ),
+            ],
           );
         },
       ),
@@ -99,10 +220,13 @@ class HomeScreen extends StatelessWidget {
           context,
           MaterialPageRoute(builder: (_) => const AddStudentScreen()),
         ),
-        backgroundColor: Colors.indigo,
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
         icon: const Icon(Icons.add),
-        label: const Text('Add Student'),
+        label: const Text(
+          'Add Student',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
       ),
     );
   }
@@ -112,16 +236,40 @@ class _StudentCard extends StatelessWidget {
   final Student student;
   const _StudentCard({required this.student});
 
+  Color _getAvatarColor(String name) {
+    final colors = [
+      Colors.deepPurple,
+      Colors.teal,
+      Colors.orange,
+      Colors.pink,
+      Colors.indigo,
+      Colors.green,
+      Colors.red,
+      Colors.blue,
+    ];
+    return colors[name.length % colors.length];
+  }
+
   void _confirmDelete(BuildContext context) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Delete Student'),
-        content: Text('Are you sure you want to delete ${student.name}?'),
+        backgroundColor: const Color(0xFF1A1A1A),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Delete Student',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Text(
+          'Are you sure you want to delete ${student.name}?',
+          style: const TextStyle(color: Colors.grey),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child:
+                const Text('Cancel', style: TextStyle(color: Colors.grey)),
           ),
           TextButton(
             onPressed: () {
@@ -138,58 +286,94 @@ class _StudentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 3,
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: CircleAvatar(
-          backgroundColor: Colors.indigo,
-          child: Text(
-            student.name.isNotEmpty ? student.name[0].toUpperCase() : '?',
-            style: const TextStyle(
-                color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-        ),
-        title: Text(
-          student.name,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF2A2A2A)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
           children: [
-            const SizedBox(height: 4),
-            Row(children: [
-              const Icon(Icons.email, size: 14, color: Colors.grey),
-              const SizedBox(width: 4),
-              Flexible(
-                  child: Text(student.email,
-                      overflow: TextOverflow.ellipsis)),
-            ]),
-            Row(children: [
-              const Icon(Icons.phone, size: 14, color: Colors.grey),
-              const SizedBox(width: 4),
-              Text(student.phone),
-            ]),
-          ],
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.edit, color: Colors.indigo),
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => AddStudentScreen(student: student),
+            // Avatar
+            CircleAvatar(
+              radius: 28,
+              backgroundColor: _getAvatarColor(student.name),
+              child: Text(
+                student.name.isNotEmpty
+                    ? student.name[0].toUpperCase()
+                    : '?',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
                 ),
               ),
             ),
-            IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
-              onPressed: () => _confirmDelete(context),
+            const SizedBox(width: 16),
+
+            // Info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    student.name,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(children: [
+                    const Icon(Icons.email_outlined,
+                        size: 13, color: Colors.grey),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        student.email,
+                        style: const TextStyle(
+                            color: Colors.grey, fontSize: 13),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ]),
+                  const SizedBox(height: 2),
+                  Row(children: [
+                    const Icon(Icons.phone_outlined,
+                        size: 13, color: Colors.grey),
+                    const SizedBox(width: 4),
+                    Text(
+                      student.phone,
+                      style: const TextStyle(
+                          color: Colors.grey, fontSize: 13),
+                    ),
+                  ]),
+                ],
+              ),
+            ),
+
+            // Actions
+            Column(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined,
+                      color: Colors.white),
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => AddStudentScreen(student: student),
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                  onPressed: () => _confirmDelete(context),
+                ),
+              ],
             ),
           ],
         ),
